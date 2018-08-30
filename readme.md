@@ -5,7 +5,7 @@ Reason why I decided to make this simple script is to learn. I did not want to c
 or win by cheating (is it even possible to win this game?).
 
 ## Description
-The bot's logic is rather easy. It clicks on the cookie and then checks if there's any good building to buy.
+The bot's logic is rather easy. It clicks on the cookie and then checks if there's any good products or building to buy.
 
 The bot uses both inner game obejcts and DOM elements.
 

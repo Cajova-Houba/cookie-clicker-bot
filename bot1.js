@@ -1,9 +1,17 @@
 // min and max prod numbers
-MIN_PROD=0;
-MAX_PROD=14;
+const MIN_PROD = 0;
+const MAX_PROD = 14;
+
+// min and max upgrade numbers
+const MIN_UPG = 0;
+const MAX_UPG = 519;
 
 function getProductElem(prodNum) {
    return document.getElementById('product'+prodNum);
+}
+
+function getUpgradeElem(upgNum) {
+    return document.getElementById('upgrade'+upgNum);
 }
 
 // returns Game.ObjectsById[prodNum]
@@ -11,10 +19,16 @@ function getGameObject(prodNum) {
    return Game.ObjectsById[prodNum];
 }
 
-// returns true if the product is enabled in left slot
+// returns true if the product element is enabled
 function isProductEnabled(prodNum) {
     var p = getProductElem(prodNum);
     return p && p.className.includes('enabled');
+}
+
+// returns true if the upgrade is unlocked and can be bought
+function isUpgradeEnabled(upgNum) {
+    var u = Game.UpgradesById[upgNum];
+    return u && u.unlocked && !u.bought && u.basePrice < Game.cookies;
 }
 
 // find first product which is unlocked but we don't own it
@@ -33,6 +47,12 @@ function findFirstUnlockedNewProduct() {
 function buyProduct(prodNum) {
    var p = getProductElem(prodNum);
    p.click();
+}
+
+// call's game buy function over upgrade object
+function buyUpgrade(upgNum) {
+    var u = Game.UpgradesById[upgNum];
+    u.buy();
 }
 
 // calculates price per 1 cookie
@@ -57,6 +77,18 @@ function findBestProduct() {
     }
 
     return prodNum;
+}
+
+// returns upgrade num of the upgrade which is 'the best'
+// currently, 'the best' = the first available but it might change in the future
+function findBestUpgrade() {
+    for (let i = MIN_UPG; i <= MAX_UPG; i++) {
+        if (isUpgradeEnabled(i)) {
+            return i;
+        }
+    }
+
+    return -1;
 }
 
 // bot logic
@@ -99,14 +131,19 @@ gameBotLoop = function() {
             waitingForNewProd = false;
             newProd = -1;
         } else {
-            // otherwise just buy the best product
+            // product not enabled, keep waiting
             return;
         }
     }
 
 
+    // otherwise just buy the best upgrade & product
+    var bestUpg = findBestUpgrade();
+    if (bestUpg > 0) {
+        console.info('Found best upgrade ' + bestUpg + ':' + Game.UpgradesById[bestUpg].name+ '!');
+        buyUpgrade(bestUpg);
+    }
 
-    // product not enabled, keep waiting
     if (bestProd > 0) {
         console.info('Found best product: '+bestProd+'!');
          buyProduct(bestProd);

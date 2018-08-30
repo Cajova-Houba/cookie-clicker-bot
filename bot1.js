@@ -122,12 +122,14 @@ gameBotLoop = function() {
                 console.info('Waiting for product ' + newProd + ' because it\'s cheaper than '+bestProd);
                 waitingForNewProd = true;
                 return;
+            } else {
+                newProd = -1;
             }
         }
     } else {
         // waiting for new product, if it's enabled, buy it
         if (isProductEnabled(newProd)) {
-          buyProduct(newProd);
+            buyProduct(newProd);
             waitingForNewProd = false;
             newProd = -1;
         } else {
@@ -139,12 +141,12 @@ gameBotLoop = function() {
 
     // otherwise just buy the best upgrade & product
     var bestUpg = findBestUpgrade();
-    if (bestUpg > 0) {
+    if (bestUpg >= 0) {
         console.info('Found best upgrade ' + bestUpg + ':' + Game.UpgradesById[bestUpg].name+ '!');
         buyUpgrade(bestUpg);
     }
 
-    if (bestProd > 0) {
+    if (bestProd >= 0) {
         console.info('Found best product: '+bestProd+'!');
          buyProduct(bestProd);
      }

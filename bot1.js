@@ -131,7 +131,7 @@ gameBotLoop = function() {
     }
 
     // check golden cookie
-    // checkGoldCookie();
+    checkGoldCookie();
 
     // find best product
     var bestProd = findBestProduct();

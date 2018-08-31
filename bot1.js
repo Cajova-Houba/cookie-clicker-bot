@@ -91,6 +91,28 @@ function findBestUpgrade() {
     return -1;
 }
 
+// checks if gold cookie is displayed and clicks on it.
+function checkGoldCookie() {
+    if (!Game.shimmers) {
+        return;
+    }
+
+    // find gold cookie in active shimmers
+    for (let i = 0; i < Game.shimmers.length; i++) {
+        let shimmer = Game.shimmers[i];
+        if (shimmer.type === "golden") {
+            console.info('Golden cookie!');
+
+            // click on the elemnt - note that this might collide with other shimmers in the future
+            shimm = document.getElementById('shimmers');
+            if (shimm && shimm.childNodes.length > 0) {
+                shimm.childNodes[1].click();
+            }
+            break;
+        }
+    }
+}
+
 // bot logic
 var newProd = -1;
 var waitingForNewProd = false;
@@ -108,20 +130,37 @@ gameBotLoop = function() {
         return;
     }
 
+    // check golden cookie
+    // checkGoldCookie();
+
     // find best product
     var bestProd = findBestProduct();
 
     // check if there's unlocked product which we don't own and if so wait for it
     if (!waitingForNewProd) {
         newProd = findFirstUnlockedNewProduct();
-        if (newProd != -1) {
+
+        // wait for new product only if some best product was found
+        // if no best product was found, it's mos likely because bot doesn't have any money and
+        // everything is disabled
+        if (newProd != -1 && bestProd != -1) {
             // if new prod is found, check it's price, if it's better than the currently available
             // best product's one
-            var newProdIsBetter=(calculateProductCookiePrice(newProd) < calculateProductCookiePrice(bestProd));
+            var newProdIsBetter= (calculateProductCookiePrice(newProd) < calculateProductCookiePrice(bestProd));
+
+            // new product can be too expensive
+            // if it cost more than 5*current cookies, ignore it
+            var tooExpensive = (getGameObject(newProd).price / Game.cookies) > 5;
+
             if(newProdIsBetter) {
-                console.info('Waiting for product ' + newProd + ' because it\'s cheaper than '+bestProd);
-                waitingForNewProd = true;
-                return;
+                if (tooExpensive) {
+                    console.info('New product ' + newProd + ' is too expensive.');
+                    newProd = -1;
+                } else {
+                    console.info('Waiting for product ' + newProd + ' because it\'s cheaper than '+bestProd);
+                    waitingForNewProd = true;
+                    return;
+                }
             } else {
                 newProd = -1;
             }

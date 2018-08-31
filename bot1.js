@@ -104,9 +104,9 @@ function checkGoldCookie() {
             console.info('Golden cookie!');
 
             // click on the elemnt - note that this might collide with other shimmers in the future
-            shimm = document.getElementById('shimmers');
+            var shimm = document.getElementById('shimmers');
             if (shimm && shimm.childNodes.length > 0) {
-                shimm.childNodes[1].click();
+                shimm.childNodes[0].click();
             }
             break;
         }

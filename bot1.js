@@ -6,6 +6,9 @@ const MAX_PROD = 14;
 const MIN_UPG = 0;
 const MAX_UPG = 519;
 
+// constant for deciding whether the new product is too expensive
+const MAX_PRICE_COOKIE_RATIO = 5;
+
 function getProductElem(prodNum) {
    return document.getElementById('product'+prodNum);
 }
@@ -21,20 +24,25 @@ function getGameObject(prodNum) {
 
 // returns true if the product element is enabled
 function isProductEnabled(prodNum) {
-    var p = getProductElem(prodNum);
+    const p = getProductElem(prodNum);
     return p && p.className.includes('enabled');
+}
+
+function isProductUnlocked(prodNum) {
+    const p = getProductElem(prodNum);
+    return p && p.className.includes('unlocked');
 }
 
 // returns true if the upgrade is unlocked and can be bought
 function isUpgradeEnabled(upgNum) {
-    var u = Game.UpgradesById[upgNum];
+    const u = Game.UpgradesById[upgNum];
     return u && u.unlocked && !u.bought && u.basePrice < Game.cookies;
 }
 
 // find first product which is unlocked but we don't own it
 function findFirstUnlockedNewProduct() {
-   for (var i = MIN_PROD; i <= MAX_PROD; i++) {
-       var p = getProductElem(i);
+   for (let i = MIN_PROD; i <= MAX_PROD; i++) {
+       const p = getProductElem(i);
        if (p.className.includes('unlocked') && getGameObject(i).amount == 0) {
            return i;
        }
@@ -45,31 +53,36 @@ function findFirstUnlockedNewProduct() {
 
 // clicks on product element
 function buyProduct(prodNum) {
-   var p = getProductElem(prodNum);
-   p.click();
+    const p = getProductElem(prodNum);
+    p.click();
 }
 
 // call's game buy function over upgrade object
 function buyUpgrade(upgNum) {
-    var u = Game.UpgradesById[upgNum];
+    const u = Game.UpgradesById[upgNum];
     u.buy();
 }
 
 // calculates price per 1 cookie
 // the lower the better
 function calculateProductCookiePrice(prodNum) {
-   var p = getGameObject(prodNum);
-   return p.price / p.cps(p);
+    const p = getGameObject(prodNum);
+    return p.price / p.cps(p);
 }
 
-// returns product num of the product with the lowest cookie price
+/**
+ * Iterates over all unlocked items and decides which has the minimal price/cps ratio.
+ * May return product which is not enabled so it should be checked before buying.
+ *
+ * @returns {number} Number of product with the best price/cps ratio.
+ */
 function findBestProduct() {
-    var minCookiePrice = -1;
-    var prodNum = -1;
-    for(var i = MIN_PROD; i <= MAX_PROD; i++) {
-        if (isProductEnabled(i)) {
-            price = calculateProductCookiePrice(i);
-            if (price < minCookiePrice || minCookiePrice == -1) {
+    let minCookiePrice = -1;
+    let prodNum = -1;
+    for(let i = MIN_PROD; i <= MAX_PROD; i++) {
+        if (isProductUnlocked(i)) {
+            const price = calculateProductCookiePrice(i);
+            if (price < minCookiePrice || minCookiePrice === -1) {
                  minCookiePrice = price;
                  prodNum = i;
             } 
@@ -104,7 +117,7 @@ function checkGoldCookie() {
             console.info('Golden cookie!');
 
             // click on the elemnt - note that this might collide with other shimmers in the future
-            var shimm = document.getElementById('shimmers');
+            const shimm = document.getElementById('shimmers');
             if (shimm && shimm.childNodes.length > 0) {
                 shimm.childNodes[0].click();
             }
@@ -113,11 +126,22 @@ function checkGoldCookie() {
     }
 }
 
+/**
+ * Decides whether the product.price / Game.cookies ratio is too big.
+ * If the ratio is greater than MAX_PRICE_COOKIE_RATIO, true is returned.
+ *
+ * @param prodNum True if the product is too expensive.
+ */
+function isProductTooExpensive(prodNum) {
+    return (getGameObject(prodNum).price / Game.cookies) > MAX_PRICE_COOKIE_RATIO;
+}
+
+
 // bot logic
-var newProd = -1;
-var waitingForNewProd = false;
+let waitingForBestProd = false;
+let bestProd = -1;
 gameBotLoop = function() {
-    var bigCookie = document.getElementById("bigCookie");
+    let bigCookie = document.getElementById("bigCookie");
     if(!bigCookie) {
         console.info("No big cookie...");
         return;
@@ -133,69 +157,64 @@ gameBotLoop = function() {
     // check golden cookie
     checkGoldCookie();
 
-    // find best product
-    var bestProd = findBestProduct();
 
-    // check if there's unlocked product which we don't own and if so wait for it
-    if (!waitingForNewProd) {
-        newProd = findFirstUnlockedNewProduct();
+    // check if we can buy the best product
+    // and if not, check if it's not too expensive
+    // if we can't buy the best product but it's not too expensive
+    // just wait for it
+    if (!waitingForBestProd) {
+        // find best product
+        bestProd = findBestProduct();
 
-        // wait for new product only if some best product was found
-        // if no best product was found, it's mos likely because bot doesn't have any money and
-        // everything is disabled
-        if (newProd != -1 && bestProd != -1) {
-            // if new prod is found, check it's price, if it's better than the currently available
-            // best product's one
-            var newProdIsBetter= (calculateProductCookiePrice(newProd) < calculateProductCookiePrice(bestProd));
+        // findBestProduct() should always return value >= 0, but check it just in case
+        if (bestProd !== -1) {
+            console.info('Found best product ' + bestProd);
 
-            // new product can be too expensive
-            // if it cost more than 5*current cookies, ignore it
-            var tooExpensive = (getGameObject(newProd).price / Game.cookies) > 5;
+            const tooExpensive = isProductTooExpensive(bestProd);
 
-            if(newProdIsBetter) {
-                if (tooExpensive) {
-                    console.info('New product ' + newProd + ' is too expensive.');
-                    newProd = -1;
-                } else {
-                    console.info('Waiting for product ' + newProd + ' because it\'s cheaper than '+bestProd);
-                    waitingForNewProd = true;
-                    return;
-                }
+            if (tooExpensive) {
+                console.info('Best product ' + bestProd + ' is too expensive.');
+
+
+            // product is not too expensive check if it can be bought
+            // and if not, wait for it
             } else {
-                newProd = -1;
+                if (isProductEnabled(bestProd)) {
+                    console.info('Buying product ' + bestProd);
+                    buyProduct(bestProd)
+                    waitingForBestProd = false;
+                } else {
+                    console.info('Waiting for product ' + bestProd);
+                    waitingForBestProd = true;
+                }
             }
         }
+
+    // we're waiting for best product -> check if we can buy it
     } else {
-        // waiting for new product, if it's enabled, buy it
-        if (isProductEnabled(newProd)) {
-            buyProduct(newProd);
-            waitingForNewProd = false;
-            newProd = -1;
+        if (isProductEnabled(bestProd)) {
+            console.info('Buying product ' + bestProd);
+            buyProduct(bestProd);
+            waitingForBestProd = false;
         } else {
-            // product not enabled, keep waiting
+            // keep waiting ...
             return;
         }
     }
 
-
-    // otherwise just buy the best upgrade & product
-    var bestUpg = findBestUpgrade();
+    // check best upgrade
+    const bestUpg = findBestUpgrade();
     if (bestUpg >= 0) {
         console.info('Found best upgrade ' + bestUpg + ':' + Game.UpgradesById[bestUpg].name+ '!');
         buyUpgrade(bestUpg);
     }
-
-    if (bestProd >= 0) {
-        console.info('Found best product: '+bestProd+'!');
-         buyProduct(bestProd);
-     }
 }
 
 // bootstrap
 window.addEventListener("load", function() {
-	var bigCookie = document.getElementById("bigCookie");
+    let bigCookie = document.getElementById("bigCookie");
 
-	if (!bigCookie) {
+    if (!bigCookie) {
 	  console.info("Big cookie not found...");
 	} else {
 	   console.info("Cookie found!");
